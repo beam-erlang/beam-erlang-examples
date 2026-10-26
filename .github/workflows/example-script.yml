@@ -1,0 +1,79 @@
+name: Build and test 'script' example
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact BEAM/Erlang distribution version including revision
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  build:
+    name: ${{ matrix.platform.target }} / ${{ matrix.flavor }}
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+        - runner: ubuntu-24.04
+          target: linux-x86_64
+        - runner: macos-15
+          target: macos-arm64
+        - runner: windows-2025
+          target: windows-x86_64
+        flavor:
+        - emu
+        - jit
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+    - name: Select private work directory
+      run: |
+        echo "WORK=$RUNNER_TEMP/beam-examples-script" >> "$GITHUB_ENV"
+        echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
+    - name: Install selected distribution
+      id: beam
+      uses: beam-erlang/setup-beam-erlang@v1
+      with:
+        version: ${{ inputs.version }}
+        flavor: ${{ matrix.flavor }}
+    - name: Select installed commands
+      env:
+        BEAM_PREFIX: ${{ steps.beam.outputs.path }}
+        BEAM_VERSION: ${{ steps.beam.outputs.version }}
+      run: |
+        BEAM_PREFIX="${BEAM_PREFIX//\\//}"
+        suffix=""
+        if [ "$RUNNER_OS" = Windows ]; then suffix=".exe"; fi
+        test -n "$BEAM_VERSION"
+        test -x "$BEAM_PREFIX/bin/beam$suffix"
+        printf 'BEAM_PREFIX=%s\nBEAM_CLI=%s/bin/beam%s\nBEAM_PKG=%s/bin/beam-pkg%s\n' "$BEAM_PREFIX" "$BEAM_PREFIX" "$suffix" "$BEAM_PREFIX" "$suffix" >> "$GITHUB_ENV"
+        mkdir -p "$WORK" artifacts
+    - name: Package source script
+      run: tar -czf "$WORK/script.tar.gz" -C examples/script example_script.erl README.md LICENSE.txt
+    - name: Run copied script and check literal arguments
+      run: python examples/script/test/smoke.py --prefix "$BEAM_PREFIX" --artifact "$WORK/script.tar.gz" --work-root "$WORK/execution"
+    - name: Stage tested artifact
+      run: cp "$WORK/script.tar.gz" artifacts/
+    - name: Upload tested artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: script-${{ steps.beam.outputs.version }}-${{ matrix.platform.target }}-${{ matrix.flavor }}
+        path: artifacts/
+        if-no-files-found: error
+        retention-days: 14
+    - name: Clean disposable outputs
+      if: always()
+      run: |
+        if [ -n "${WORK:-}" ]; then rm -rf -- "$WORK"; fi
+        rm -rf artifacts examples/script/build examples/script/.beam
+        rm -f examples/script/beam.lock

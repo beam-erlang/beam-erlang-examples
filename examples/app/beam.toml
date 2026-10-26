@@ -1,0 +1,17 @@
+format = 2
+
+[package]
+name = "examples/app"
+version = "0.1.0"
+
+[build]
+sources = ["src/example_app.erl"]
+
+[exports]
+licenses = ["LICENSE.txt"]
+
+[host]
+modules = ["erlang", "io"]
+
+[entry]
+module = "example_app"

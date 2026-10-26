@@ -1,0 +1,19 @@
+format = 2
+
+[package]
+name = "examples/nif"
+version = "0.1.0"
+
+[build]
+sources = ["src/example_nif.erl"]
+
+[build.native]
+cmake = "c_src"
+outputs = ["example_nif"]
+nifs = { example_nif = "example_nif" }
+
+[exports]
+licenses = ["LICENSE.txt"]
+
+[host]
+modules = ["erlang"]

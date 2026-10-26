@@ -1,0 +1,7 @@
+**/build/
+**/.beam/
+**/beam.lock
+**/__pycache__/
+**/erl_crash.dump
+/artifacts/
+/.work/

@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.25)
+project(example_nif VERSION 0.1.0 LANGUAGES C)
+find_package(BEAM CONFIG REQUIRED)
+add_library(example_nif MODULE example_nif.c)
+beam_target_nif(example_nif MODULE example_nif)
+set_target_properties(example_nif PROPERTIES PREFIX "")
+beam_package_native_output(example_nif NAME example_nif)
